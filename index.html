@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FanCode X Tour X Advertiser Intelligence Database</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0D1B2A; --navy2: #1E3A5F; --purple: #3B1F5F;
+    --bg: #F4F6F9; --card: #FFFFFF; --border: #E2E8F0;
+    --text: #1a1a2e; --muted: #64748B;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+
+  /* HEADER */
+  .header {
+    background: var(--navy); padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 36px; height: 36px; background: #E8483C; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 14px; }
+  .header-title { color: white; }
+  .header-title h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-title p { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: #E8483C; color: white; }
+  .btn-primary:hover { background: #c93c31; }
+  .btn-secondary { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.2); }
+  .btn-secondary:hover { background: rgba(255,255,255,0.2); }
+  .file-name-tag { font-size: 11px; color: #94A3B8; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 20px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* DROP ZONE */
+  #dropZoneWrap {
+    display: flex; align-items: center; justify-content: center;
+    height: calc(100vh - 64px);
+  }
+  #dropZone {
+    border: 2px dashed #CBD5E1; border-radius: 16px;
+    padding: 60px 80px; text-align: center;
+    background: white; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    max-width: 520px; width: 100%;
+  }
+  #dropZone.drag-over { border-color: var(--navy2); background: #EFF6FF; }
+  #dropZone .drop-icon { font-size: 48px; margin-bottom: 16px; }
+  #dropZone h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  #dropZone p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  #dropZone .browse-btn {
+    margin-top: 20px; display: inline-block;
+    background: var(--navy); color: white;
+    padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+  }
+  #dropZone .browse-btn:hover { background: var(--navy2); }
+  #fileInput { display: none; }
+  .format-note { font-size: 11px; color: #94A3B8; margin-top: 12px; }
+
+  /* STATS BAR */
+  .stats-bar {
+    background: var(--navy2); padding: 10px 24px;
+    display: flex; gap: 24px; align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .stat { text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 800; color: white; line-height: 1; }
+  .stat-label { font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .stat-divider { width: 1px; height: 32px; background: rgba(255,255,255,0.15); }
+
+  /* LAYOUT */
+  .layout { display: flex; height: calc(100vh - 130px); overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 240px; min-width: 240px; background: var(--card);
+    border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .sidebar-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .search-box { position: relative; }
+  .search-box input {
+    width: 100%; padding: 8px 10px 8px 32px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; color: var(--text); outline: none; transition: border-color 0.15s;
+  }
+  .search-box input:focus { border-color: var(--navy2); }
+  .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  .filter-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .filter-scroll {
+    max-height: 140px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; background: white;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .filter-scroll::-webkit-scrollbar { width: 4px; }
+  .filter-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+  .checkbox-group { display: flex; flex-direction: column; gap: 5px; }
+  .checkbox-item { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  .checkbox-item input { width: 13px; height: 13px; cursor: pointer; accent-color: var(--navy2); }
+  .checkbox-item label { font-size: 12px; color: var(--text); cursor: pointer; }
+  .active-count { display: inline-block; background: var(--navy2); color: white; border-radius: 10px; font-size: 9px; font-weight: 700; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
+  .clear-btn {
+    width: 100%; padding: 7px; border: 1px solid var(--border);
+    border-radius: 6px; background: white; color: var(--muted);
+    font-size: 12px; cursor: pointer; font-weight: 500; margin-top: 4px;
+    transition: all 0.15s;
+  }
+  .clear-btn:hover { background: var(--bg); color: var(--text); }
+
+  /* MAIN */
+  .main { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+  .toolbar {
+    padding: 12px 16px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .result-count { font-size: 13px; color: var(--muted); }
+  .result-count strong { color: var(--text); }
+  .view-tabs { display: flex; gap: 4px; }
+  .view-tab { padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: white; color: var(--muted); transition: all 0.15s; }
+  .view-tab.active { background: var(--navy); color: white; border-color: var(--navy); }
+
+  /* TABLE */
+  .table-wrapper { flex: 1; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    background: var(--navy); color: white; font-size: 11px; font-weight: 600;
+    padding: 10px; text-align: left; position: sticky; top: 0; z-index: 5;
+    white-space: nowrap; cursor: pointer; user-select: none;
+    border-right: 1px solid rgba(255,255,255,0.1);
+  }
+  thead th:hover { background: var(--navy2); }
+  thead th .si { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: #F0F4FF; }
+  tbody td { padding: 9px 10px; vertical-align: top; max-width: 260px; }
+  .cell-clip { max-height: 52px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  tr.sep-row td { background: #3B1F5F; color: white; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 6px 12px; cursor: default; }
+  tr.sep-row:hover td { background: #3B1F5F; }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+  .badge-a { background: #FEE2E2; color: #991B1B; }
+  .badge-b { background: #FEF9C3; color: #854D0E; }
+  .badge-c { background: #DCFCE7; color: #166534; }
+  .badge-yes { background: #DCFCE7; color: #166534; }
+  .badge-no { background: #F1F5F9; color: #64748B; }
+  .badge-direct { background: #DBEAFE; color: #1E40AF; }
+  .badge-pitch { background: #EDE9FE; color: #5B21B6; }
+  .badge-extreme { background: #7C3AED; color: white; }
+  .badge-vh { background: #DC2626; color: white; }
+  .badge-high { background: #EA580C; color: white; }
+  .badge-mod { background: #D97706; color: white; }
+  .badge-low { background: #16A34A; color: white; }
+
+  /* CARD VIEW */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; padding: 16px; }
+  .card { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 14px; transition: box-shadow 0.15s; cursor: pointer; }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .card-name { font-size: 14px; font-weight: 700; }
+  .card-cat { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .card-row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+  .card-field { font-size: 11px; margin-bottom: 6px; }
+  .card-field strong { color: var(--muted); font-size: 10px; text-transform: uppercase; display: block; }
+  .card-div { height: 1px; background: var(--border); margin: 10px 0; }
+  .card-sep { grid-column: 1/-1; background: #3B1F5F; color: white; border-radius: 8px; padding: 8px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .hidden { display: none !important; }
+  .no-results { padding: 60px; text-align: center; color: var(--muted); }
+  .no-results h3 { font-size: 18px; margin-bottom: 8px; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal { background: white; border-radius: 12px; max-width: 860px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .modal-title { font-size: 20px; font-weight: 800; }
+  .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--muted); line-height: 1; }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .modal-field { display: flex; flex-direction: column; gap: 3px; }
+  .modal-field label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+  .modal-field span { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .modal-section { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .modal-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
+  .affinity-box { background: #F8F5FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 14px; grid-column: 1/-1; }
+  .affinity-box .aff-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #5B21B6; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .affinity-box .aff-text { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .affinity-box .aff-source { font-size: 11px; color: var(--muted); margin-top: 6px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">FC</div>
+    <div class="header-title">
+      <h1>FanCode X Tour X Advertiser Intelligence Database</h1>
+      <p id="headerSub">Sport: Tennis  |  Tournament: ATP Tour  |  Loading…</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary" id="reloadBtn" onclick="triggerFilePicker()" title="Update portal with your latest Excel file">&#8635; Refresh from Excel</button>
+    <button class="btn btn-primary" id="exportBtn" onclick="doExport()">&#8659; Export to Excel</button>
+  </div>
+</div>
+
+<!-- Hidden file input for Excel refresh (owner only) -->
+<input type="file" id="fileInput" accept=".xlsx" onchange="onFileSelected(event)" style="display:none">
+
+<!-- MAIN PORTAL — visible immediately with embedded data -->
+<div id="portalWrap">
+
+  <!-- STATS BAR -->
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Brands</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num" id="statDirect" style="color:#93C5FD">—</div><div class="stat-label">Direct Advertisers</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num" id="statPitch" style="color:#C4B5FD">—</div><div class="stat-label">Pitch Targets</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num" id="statA" style="color:#FCA5A5">—</div><div class="stat-label">Priority A</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num" id="statB" style="color:#FDE68A">—</div><div class="stat-label">Priority B</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num" id="statATP" style="color:#86EFAC">—</div><div class="stat-label">ATP Partners</div></div>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div>
+        <div class="sidebar-title">Search</div>
+        <div class="search-box" style="margin-top:6px">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" id="searchInput" placeholder="Brand, contact, category..." oninput="applyFilters()">
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Advertiser Type <span class="active-count hidden" id="cntType"></span></div>
+        <div class="checkbox-group" id="filterType">
+          <div class="checkbox-item"><input type="checkbox" id="ft1" value="Direct Advertiser" onchange="applyFilters()"><label for="ft1">Direct Advertiser</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="ft2" value="Pitch Target – Indian Equiv" onchange="applyFilters()"><label for="ft2">Pitch Target</label></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Priority Tier <span class="active-count hidden" id="cntPriority"></span></div>
+        <div class="checkbox-group" id="filterPriority">
+          <div class="checkbox-item"><input type="checkbox" id="pa" value="A – High Priority" onchange="applyFilters()"><label for="pa">A – High Priority</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="pb" value="B – Medium Priority" onchange="applyFilters()"><label for="pb">B – Medium Priority</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="pc" value="C – Monitor" onchange="applyFilters()"><label for="pc">C – Monitor</label></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Category <span class="active-count hidden" id="cntCategory"></span></div>
+        <div class="filter-scroll" id="filterCategory"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">HQ Country <span class="active-count hidden" id="cntHQ"></span></div>
+        <div class="filter-scroll" id="filterHQ"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">ATP Tournament Partner? <span class="active-count hidden" id="cntATP"></span></div>
+        <div class="checkbox-group" id="filterATP">
+          <div class="checkbox-item"><input type="checkbox" id="atpY" value="Yes" onchange="applyFilters()"><label for="atpY">Yes</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="atpN" value="No" onchange="applyFilters()"><label for="atpN">No</label></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Key Contact Affinity <span class="active-count hidden" id="cntAffinity"></span></div>
+        <div class="checkbox-group" id="filterAffinity">
+          <div class="checkbox-item"><input type="checkbox" id="aff1" value="Extreme" onchange="applyFilters()"><label for="aff1">Extreme</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="aff2" value="Very High" onchange="applyFilters()"><label for="aff2">Very High</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="aff3" value="High" onchange="applyFilters()"><label for="aff3">High</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="aff4" value="Moderate-High" onchange="applyFilters()"><label for="aff4">Moderate-High</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="aff5" value="Moderate" onchange="applyFilters()"><label for="aff5">Moderate</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="aff6" value="Low" onchange="applyFilters()"><label for="aff6">Low</label></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Advertised on Sports? <span class="active-count hidden" id="cntAdvSports"></span></div>
+        <div class="checkbox-group" id="filterAdvSports">
+          <div class="checkbox-item"><input type="checkbox" id="asY" value="Yes" onchange="applyFilters()"><label for="asY">Yes</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="asN" value="No" onchange="applyFilters()"><label for="asN">No</label></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">FanCode Historical? <span class="active-count hidden" id="cntFanCode"></span></div>
+        <div class="checkbox-group" id="filterFanCode">
+          <div class="checkbox-item"><input type="checkbox" id="fcY" value="Yes" onchange="applyFilters()"><label for="fcY">Yes</label></div>
+          <div class="checkbox-item"><input type="checkbox" id="fcN" value="No" onchange="applyFilters()"><label for="fcN">No</label></div>
+        </div>
+      </div>
+      <button class="clear-btn" onclick="clearFilters()">&#10005; Clear all filters</button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="toolbar">
+        <div class="result-count">Showing <strong id="resultCount">—</strong> brands</div>
+        <div class="view-tabs">
+          <div class="view-tab active" id="tabTable" onclick="setView('table')">&#9776; Table</div>
+          <div class="view-tab" id="tabCard" onclick="setView('card')">&#9635; Cards</div>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-wrapper" id="viewTable">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width:70px">Sport</th>
+              <th onclick="sortBy('name')" style="min-width:160px">Advertiser <span class="si">&#8597;</span></th>
+              <th style="min-width:100px">Type</th>
+              <th onclick="sortBy('category')" style="min-width:140px">Category <span class="si">&#8597;</span></th>
+              <th style="min-width:80px">HQ</th>
+              <th onclick="sortBy('presence')" style="min-width:100px">Presence <span class="si">&#8597;</span></th>
+              <th style="min-width:90px">Partnered with Tournament Body?</th>
+              <th style="min-width:90px">Advertised on Sports?</th>
+              <th style="min-width:200px">Which Sport(s) Has Brand Advertised On?</th>
+              <th style="min-width:90px">FanCode Historical Advertiser?</th>
+              <th style="min-width:90px">Advertised on Competitor Platforms?</th>
+              <th style="min-width:220px">Competitor Platforms &amp; Tournaments Advertised On</th>
+              <th style="min-width:150px">Key Contact</th>
+              <th style="min-width:180px">Sport Affinity</th>
+              <th style="min-width:160px">Affinity Source</th>
+              <th onclick="sortBy('key_contact_strength')" style="min-width:100px">Strength <span class="si">&#8597;</span></th>
+              <th onclick="sortBy('priority_tier')" style="min-width:120px">Priority <span class="si">&#8597;</span></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="no-results hidden" id="noResultsTable">
+          <h3>No brands match your filters</h3>
+          <p>Try adjusting your search or clearing filters</p>
+        </div>
+      </div>
+
+      <!-- CARDS -->
+      <div class="card-grid hidden" id="viewCard"></div>
+      <div class="no-results hidden" id="noResultsCard">
+        <h3>No brands match your filters</h3><p>Try adjusting your search or clearing filters</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="mTitle"></div>
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap" id="mBadges"></div>
+      </div>
+      <button class="modal-close" onclick="closeModalBtn()">&#215;</button>
+    </div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<script>
+let ALL_DATA = [];
+let filteredData = [];
+let currentView = 'table';
+let sortField = 'priority_tier';
+let sortDir = 1;
+
+// ── EMBEDDED DATA (snapshot baked in at build time) ───────────────────────────
+const EMBEDDED_DATA = [{"sport":"Tennis","tournament":"ATP Tour","name":"Infosys","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Technology / IT Services","subcategory":"Digital Innovation","hq_country":"India","presence":"Global","current_atp_sponsor":"Yes","advertised_on_sports":"Yes","which_sports":"Tennis (Official ATP Digital Innovation Partner 2015–2028; Roland Garros)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"SonyLiv (ATP); Star Sports and JioHotstar (ICC Tournaments)","key_contact":"Sumit Virmani","key_contact_title":"Chief Marketing Officer","key_contact_linkedin":"linkedin.com/in/sumitvirmani","key_contact_affinity":"Cricket, Running & Tennis","affinity_source":"✅ Verified Cricket & Running: Frequently uses sports metaphors for leadership; an active runner. Publicly identified as 'Tennis Enthusiast & Bollywood Fan'. Attends Grand Slams.","priority_tier":"A – High Priority","key_contact_strength":"High"},{"sport":"Tennis","tournament":"ATP Tour","name":"American Express India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Banking & Finance","subcategory":"Premium Credit Cards","hq_country":"USA / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (US Open Official Sponsor since 1994 – 30+ year partnership)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL); SonyLiv (US Open)","key_contact":"Sanjay Khanna","key_contact_title":"Country Manager","key_contact_linkedin":"https://www.linkedin.com/in/sanjay-khanna-he-him-8657a14/","key_contact_affinity":"Martial arts","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Kia India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Automotive","subcategory":"Passenger Vehicles","hq_country":"South Korea / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Australian Open Title Sponsor – Kia Cup; $15M/yr; Official ATP Tour Car Partner)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony Sports Australian Open 2025 (sponsor; KIA Arena naming rights globally)","key_contact":"Tae-Jin Park","key_contact_title":"Chief Sales & Business Strategy Officer","key_contact_linkedin":"","key_contact_affinity":"Golf","affinity_source":"Golf. A regular in corporate golf circles,","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Mastercard","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Banking & Finance","subcategory":"Payments","hq_country":"USA","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Golf","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports and JioHotstar (ICC WC 2023, IPL); Sony (UEFA Champions League; PGA Tour)","key_contact":"Raja Rajamannar","key_contact_title":"Chief Marketing & Comms Officer","key_contact_linkedin":"linkedin.com/in/rajarajamannar","key_contact_affinity":"Tennis, Golf (broad sports passion confirmed)","affinity_source":"✅ Verified – Raja Rajamannar stated: 'Sports happens to be a gigantic passion area' [Chief Marketer]; Mastercard portfolio covers tennis, golf, hockey, rugby. He is widely known as a multi-sport enthusiast.","priority_tier":"A – High Priority","key_contact_strength":"High"},{"sport":"Tennis","tournament":"ATP Tour","name":"Rolex","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Luxury Goods","subcategory":"Watches & Jewellery","hq_country":"Switzerland","presence":"Global","current_atp_sponsor":"Yes","advertised_on_sports":"Yes","which_sports":"Tennis (Official Timekeeper)","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports Wimbledon (2022, 2023, 2024) · Sony LIV Australian Open (2024, 2025) · Sony LIV French Open (2024)","key_contact":"-","key_contact_title":"-","key_contact_linkedin":"-","key_contact_affinity":"Golf, Tennis","affinity_source":"🔶 Inferred – Rolex ecosystem; no public personal statement found","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Emirates","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Travel & Aviation","subcategory":"Airlines","hq_country":"UAE","presence":"Global","current_atp_sponsor":"Yes","advertised_on_sports":"Yes","which_sports":"Tennis, Cricket, Football","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports Wimbledon (2022) · JioHotstar (Wimbledon 2023, 2024, 2025, Premier League) SonyLiv / Sony Sports (UCL)","key_contact":"Boutros Boutros","key_contact_title":"Chief Commercial Officer","key_contact_linkedin":"linkedin.com/in/boutrosboutros","key_contact_affinity":"Football, Horse Racing","affinity_source":"Verified","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"HSBC","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Banking & Finance","subcategory":"Retail Banking","hq_country":"UK","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis, Rugby, Golf","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony Sports (Wimbledon, Golf (HSBC Golf Series))","key_contact":"Arkaprava Ray","key_contact_title":"SVP, Brand Partnerships","key_contact_linkedin":"https://www.linkedin.com/in/arkaprava-ray/","key_contact_affinity":"Golf","affinity_source":"HSBC Golf League - He conceptualized and launched this digital platform to engage the golfing community with championships and networking.","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Barclays","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Banking & Finance","subcategory":"Retail & Corporate Banking","hq_country":"UK","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Wimbledon Official Banking Partner, £20M/yr)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports (Premier League)","key_contact":"Hauke Stars","key_contact_title":"Chief Marketing Officer","key_contact_linkedin":"","key_contact_affinity":"","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Jaguar Land Rover (JLR)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Automotive","subcategory":"Luxury SUVs","hq_country":"UK / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Wimbledon Official Car Partner – Range Rover since 2015)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (Wimbledon); Sony Sports (Formula E)","key_contact":"Rajan Amba","key_contact_title":"Managing Director – India","key_contact_linkedin":"","key_contact_affinity":"Yoga","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"IBM India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Technology / IT Services","subcategory":"Data & AI Analytics","hq_country":"USA / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Wimbledon Technology Partner 35+ yrs; Australian Open; US Open)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony (Wimbledon, ATP Masters)","key_contact":"Tuhina Pandey","key_contact_title":"APAC Communications & Marketing, India and South Asia","key_contact_linkedin":"","key_contact_affinity":"","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Moët Hennessy India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG – Beverages","subcategory":"Champagne & Premium Spirits","hq_country":"France / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (All 4 Grand Slams – Official Champagne; Wimbledon + Roland Garros + US Open + AO)","fancode_historical":"","advertised_on_competitor":"No","competitor_platforms_detail":"","key_contact":"Siddharth Suri","key_contact_title":"Managing Director – Moët Hennessy India (from Sep 2025)","key_contact_linkedin":"","key_contact_affinity":"Cricket, Golf, Basketball","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"BNP Paribas India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Banking & Finance","subcategory":"Corporate & Investment Banking","hq_country":"France / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Roland Garros Title Sponsor since 1973; BNP Paribas Open – Indian Wells title)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"SonyLIV (Roland Garros)","key_contact":"Manisha Khosla Sinha","key_contact_title":"Head of Brand & Communications","key_contact_linkedin":"","key_contact_affinity":"Tennis, Running","affinity_source":"Verified - https://www.linkedin.com/posts/manisha-khosla-sinha_bnp-paribas-india-wat-cup-2026-activity-7435582206061744128--1_1/","priority_tier":"A – High Priority","key_contact_strength":"High"},{"sport":"Tennis","tournament":"ATP Tour","name":"Adidas India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Fashion & Apparel","subcategory":"Sportswear & Equipment","hq_country":"Germany / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Roland Garros equipment; ATP player endorsements; Adidas racket range)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar & Star Sports (ICC Tournaments, FIFA); SonyLiv (Football Leagues)","key_contact":"Neelendra Singh","key_contact_title":"General Manager – Adidas India","key_contact_linkedin":"linkedin.com/in/neelendrasingh-adidas","key_contact_affinity":"Running, Badminton, Cricket","affinity_source":"Verified - https://www.storyboard18.com/brand-marketing/adidas-plans-to-race-to-the-top-of-indias-sports-market-country-md-neelendra-singh-reveals-how-33464.htm","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Red Bull","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG – Beverages","subcategory":"Energy Drinks","hq_country":"Austria","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis, Extreme Sports, F1","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony LIV French Open 2024 (sponsor) · Australian Open 2025 (new global sponsor)","key_contact":"Rachit Mehta","key_contact_title":"Director – Marketing, Red Bull India","key_contact_linkedin":"","key_contact_affinity":"Extreme sports - Skateboarding, cliff diving\nMotorsports and Football","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Polo Ralph Lauren","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Fashion & Apparel","subcategory":"Luxury Lifestyle Apparel","hq_country":"USA","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Wimbledon + US Open Official Outfitter; Australian Open fashion partner)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony Sports (Wimbledon, US Open)","key_contact":"Shubhi Sinha","key_contact_title":"Brand Head - Ralph Lauren, India","key_contact_linkedin":"https://www.linkedin.com/in/shubhi-sinha-249a9317/","key_contact_affinity":"Tennis, Polo, Golf","affinity_source":"🔶 Inferred – Brand identity (Polo Ralph Lauren × Wimbledon heritage); no personal statement","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Deloitte India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Professional Services","subcategory":"Consulting & Advisory","hq_country":"USA / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (US Open Official Professional Services Partner)","fancode_historical":"","advertised_on_competitor":"No","competitor_platforms_detail":"","key_contact":"Anuradha Gupta","key_contact_title":"Executive Director, Marketing, Deloitte South Asia","key_contact_linkedin":"https://www.linkedin.com/in/anuradha-gupta-1b2b2436/","key_contact_affinity":"","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Haier India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Consumer Electronics","subcategory":"Home Appliances","hq_country":"China / India","presence":"Regional","current_atp_sponsor":"Yes","advertised_on_sports":"Yes","which_sports":"Tennis (Roland Garros + Australian Open Official Partner; ATP Tour)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (Wimbledon 2024, 2025) IPL 2024, ICC Men's T20 World Cup 2024, Champions Trophy 2025, Premier League 2024-25) SonyLiv (Asia Cup 2025)","key_contact":"Satish N.S.","key_contact_title":"President – Haier India (since Jan 2022)","key_contact_linkedin":"linkedin.com/in/satish-ns-haier","key_contact_affinity":"","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Google India (Pixel)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Technology / Consumer Electronics","subcategory":"Smartphones","hq_country":"USA / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Australian Open Official Sponsor – Google Pixel; multi-sport global activations)","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL, ICC, BCCI, Premier League, Olympics)","key_contact":"Sapna Chadha","key_contact_title":"VP Marketing – Google India & SE Asia","key_contact_linkedin":"linkedin.com/in/sapnachadha-google","key_contact_affinity":"Running, Outdoors (morning walks with family)","affinity_source":"✅ Verified – Sapna Chadha: described as enjoying morning walks at Botanical Gardens with family","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"HDFC (now HDFC Bank)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"BFSI / Banking","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports, JioHotstar (IPL, ICC)","key_contact":"Ravi Santhanam","key_contact_title":"Group Head & CMO, HDFC Bank","key_contact_linkedin":"","key_contact_affinity":"Football","affinity_source":"https://mmaglobal.com/speakers/ravi-santhanam#:~:text=Ravi%20Santhanam%20%7C%20MMA%20/%20Marketing%20+,More","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Lacoste","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Fashion & Apparel","subcategory":"Sportswear","hq_country":"France","presence":"Global","current_atp_sponsor":"Yes","advertised_on_sports":"Yes","which_sports":"Tennis (Official Apparel)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"SonyLiv (Roland-Garros partner; ATP Miami Open)","key_contact":"-","key_contact_title":"-","key_contact_linkedin":"-","key_contact_affinity":"Tennis (active player background)","affinity_source":"🔶 Inferred – Brand identity; no public confirmation found","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Wilson Sporting Goods","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Sports Equipment","subcategory":"Racket Sports","hq_country":"USA","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Official Ball)","fancode_historical":"","advertised_on_competitor":"No","competitor_platforms_detail":"","key_contact":"-","key_contact_title":"-","key_contact_linkedin":"-","key_contact_affinity":"Tennis, Golf","affinity_source":"🔶 Inferred – Sports equipment exec; no public statement found","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Pepsi (India)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG – Beverages","subcategory":"Carbonated Soft Drinks","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports, JioHotstar (IPL, ICC tournaments)","key_contact":"Tarun Bhagat","key_contact_title":"Senior Director, Marketing – India","key_contact_linkedin":"linkedin.com/in/tarunbhagat","key_contact_affinity":"Cricket","affinity_source":"Inferred - Professional career is deeply intertwined with extreme sports and cricket.","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Oppo India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Consumer Electronics","subcategory":"Smartphones","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports, JioHotstar (IPL, ICC tournaments, BCCI)","key_contact":"Sushant Vashistha","key_contact_title":"CMO – India & South Asia","key_contact_linkedin":"https://www.linkedin.com/in/sushantvashistha/","key_contact_affinity":"","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"boAt Lifestyle","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Consumer Electronics","subcategory":"Audio & Wearables","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports, JioHotstar (IPL, ICC tournaments)","key_contact":"Aman Gupta","key_contact_title":"Co-Founder & CMO","key_contact_linkedin":"linkedin.com/in/amangupta-boat","key_contact_affinity":"Cricket, Padel, Pickleball","affinity_source":"✅ Verified – Aman Gupta posted on LinkedIn: 'People who know me, know that I am a cricket fanatic.' https://www.linkedin.com/posts/aman-gupta-7217a515_people-who-know-me-know-that-i-am-a-cricket-activity-7189228515983060992-cT2v/","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Vodafone Idea (Vi)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Telecom","subcategory":"Mobile & Data Services","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Vodafone – Wimbledon 5G/Tech Partner; Vi India JV)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL)","key_contact":"Avneesh Khosla","key_contact_title":"Chief Marketing Officer","key_contact_linkedin":"linkedin.com/in/avneeshkhosla","key_contact_affinity":"Cricket, Marathons","affinity_source":"🔶 Inferred – India telecom exec; no public statement found","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Evian (Danone India)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG – Beverages","subcategory":"Natural Mineral Water","hq_country":"France / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Wimbledon + Roland Garros + Australian Open Official Water since 2008)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony Sports (Grand Slams)","key_contact":"Priyanka Verma","key_contact_title":"CMO - Danone","key_contact_linkedin":"https://www.linkedin.com/in/priyanka-verma-1b5b4b14/","key_contact_affinity":"Tennis, Running, Yoga","affinity_source":"🔶 Inferred – Brand alignment (Evian x tennis); no personal statement found","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Heineken India (UB Group)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG – Beverages","subcategory":"Premium Beer","hq_country":"Netherlands / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (US Open Official Beer Partner; F1; Rugby World Cup)","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"SonyLIV / Sony Sports (UEFA Champions League)","key_contact":"Vineeth Suresh","key_contact_title":"VP Marketing – Heineken India","key_contact_linkedin":"https://www.linkedin.com/in/vineeth-suresh/","key_contact_affinity":"Football","affinity_source":"🔶 Inferred – Global beer brand sports portfolio; India exec background; Social profile around football","priority_tier":"A – High Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Louis Vuitton India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Luxury Goods","subcategory":"Luxury Fashion & Leather Goods","hq_country":"France / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Australian Open Fashion Partner; Roland Garros; LV trophy travel cases)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (FIFA)","key_contact":"Shriya Puri","key_contact_title":"Country Head - India","key_contact_linkedin":"https://www.linkedin.com/in/shriya-puri-a382b77/","key_contact_affinity":"-","affinity_source":"-","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Amul (GCMMF)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG / Dairy","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports (Wimbledon 2024, 2025, Premier League, ICC, BCCI, IPL) Sony Sports (Australian Open 2025)","key_contact":"Jayen Mehta","key_contact_title":"Managing Director, Gujarat Co-operative Milk Marketing Federation (GCMMF / Amul)","key_contact_linkedin":"","key_contact_affinity":"Football","affinity_source":"He is a passionate fan and has travelled internationally to support teams, including attending the FIFA World Cup 2022 in Qatar to watch Portugal and Argentina.","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"LIC India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Insurance / BFSI","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports (Wimbledon 2022, 2024 (sponsor), IPL)","key_contact":"R Doraiswamy","key_contact_title":"CEO & Managing Director, LIC India","key_contact_linkedin":"","key_contact_affinity":"R Doraiswamy – 'relaxes by reading, gardening, and variety of sports' (per industry profile). General sports viewer. No specific sport or team affinity documented.","affinity_source":"General sports","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"BMW India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Luxury Automotive","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (Wimbledon) Sony LIV (French Open 2024)","key_contact":"Vitesh Barar","key_contact_title":"Marketing Director, BMW India","key_contact_linkedin":"","key_contact_affinity":"Golf","affinity_source":"He is part of BMW Golf club","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Airtel India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Telecom","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (ICC WC, Wimbledon)","key_contact":"Shashwat Sharma (transitioning to CEO/MD from Jan 2026)","key_contact_title":"Chief Marketing & Brand Officer → CEO/MD, Bharti Airtel","key_contact_linkedin":"","key_contact_affinity":"Badminton","affinity_source":"Played Badminton during IIM A","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Mercedes-Benz India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Luxury Automotive","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Football, Tennis","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (Premier League, Wimbledon)","key_contact":"Amrit Baid","key_contact_title":"GM – Marketing & Customer Experience","key_contact_linkedin":"","key_contact_affinity":"Formula 1, Golf","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Apple India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Technology / Consumer Electronics","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (ICC, IPL, Premier League, Wimbledon)","key_contact":"Varun Puri","key_contact_title":"Brand Marketing Lead","key_contact_linkedin":"https://www.linkedin.com/in/purivarun/","key_contact_affinity":"Chess, Athletic training and fitness enthusiast","affinity_source":"","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Swiggy Instamart","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Quick Commerce","subcategory":"Grocery Delivery","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL)","key_contact":"Mayur Hola","key_contact_title":"VP – Brand","key_contact_linkedin":"linkedin.com/in/mayurhola","key_contact_affinity":"Football (played in Singapore)","affinity_source":"✅ Verified – Mentioned playing football in Singapore [Good Ads Matter profile]. Cricket not confirmed for personal interest.","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Renault India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Automotive","subcategory":"Passenger Vehicles","hq_country":"France / India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Roland Garros Official Car Partner; F1 motorsport)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports Wimbledon 2022","key_contact":"Venkatram Mamillapalle","key_contact_title":"Country CEO & MD – Renault India","key_contact_linkedin":"linkedin.com/in/venkatrammamillapalle","key_contact_affinity":"Motorsports","affinity_source":"Inferred","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Hyundai Motor India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Automotive","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, ICC, Wimbledon 2024); Sony LIV (Australian Open, French Open 2024 & 2025)","key_contact":"Virat Khullar","key_contact_title":"Head of Marketing, Hyundai Motor India Ltd","key_contact_linkedin":"","key_contact_affinity":"Cricket","affinity_source":"Inferred","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"ICICI Mutual Funds","advertiser_type":"Direct Advertiser","linked_brand":"","category":"BFSI / Asset Management","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star sports & JioHotstar (IPL, ICC, BCCI)","key_contact":"Abhijit Shah","key_contact_title":"Chief Marketing and Digital Business Officer","key_contact_linkedin":"https://www.linkedin.com/in/abhijit-shah-a959574/","key_contact_affinity":"Cricket","affinity_source":"Inferred","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Atlys","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Travel Tech / Visa Platform","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioStar(Wimbledon 2025, US Open)","key_contact":"Santosh Hegde","key_contact_title":"Head of Marketing, Atlys","key_contact_linkedin":"","key_contact_affinity":"Tennis","affinity_source":"Santosh Hegde – Quoted in BestMediaInfo: 'Wimbledon = culturally resonant for globally inclined Indian audience'","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Dezerv","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Fintech / Wealth Management","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL)","key_contact":"Yash Bhargava","key_contact_title":"Head of Brand and Content Marketing, Dezerv","key_contact_linkedin":"https://www.linkedin.com/in/bhargavayash/","key_contact_affinity":"Triathlon and Sailing","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Bank of Baroda","advertiser_type":"Direct Advertiser","linked_brand":"","category":"BFSI / Public Sector Bank","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL)","key_contact":"VG Senthilkumar","key_contact_title":"Head of Marketing, Branding & PR","key_contact_linkedin":"","key_contact_affinity":"Cricket, Basketball","affinity_source":"https://www.facebook.com/exchange4media/videos/v-g-senthilkumar-head-of-marketing-branding-at-bank-of-baroda-shares-insights-on/1154761619461004/","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"CRED","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Fintech / Premium Rewards","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports (IPL, BCCI)","key_contact":"Kunal Shah","key_contact_title":"Founder & CEO, CRED","key_contact_linkedin":"","key_contact_affinity":"Cricket","affinity_source":"He openly admires cricketing icons like Yuvraj Singh, calling him the \"hero of two World Cups\".","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Vistara (now Air India)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Airline","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, ICC, BCCI, Wimbledon)","key_contact":"Sunil Suresh","key_contact_title":"CMO & Global Head of Marketing, Air India","key_contact_linkedin":"","key_contact_affinity":"Football","affinity_source":"Inferred","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Tata Motors","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Automotive","subcategory":"Passenger Vehicles","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Football, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL)","key_contact":"Vivek Srivatsa","key_contact_title":"Chief Commercial Officer – PV","key_contact_linkedin":"linkedin.com/in/viveksrivatsa","key_contact_affinity":"Cricket, Tennis","affinity_source":"🔶 Inferred – Vivek admires Rolex-Wimbledon-Federer brand association (stated in marketing interview). Tata Motors heavily invested in cricket (IPL title sponsor). No personal sport statement found.","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Grey Goose (Bacardi India)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG – Beverages","subcategory":"Premium Vodka / Spirits","hq_country":"France / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (US Open Official Vodka – 'Honey Deuce' cocktail; since 2007)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony (Tennis)","key_contact":"Chris Cowan","key_contact_title":"Senior Brand Director – Grey Goose","key_contact_linkedin":"linkedin.com/in/chriscowangreygoose","key_contact_affinity":"Tennis, Golf","affinity_source":"🔶 Inferred – Brand tied to US Open since 2007; no personal statement found","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Pirelli India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Auto & Ancillaries","subcategory":"Performance Tyres","hq_country":"Italy / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis (Australian Open Official Tyre Partner – new multi-year deal 2025; F1)","fancode_historical":"","advertised_on_competitor":"No","competitor_platforms_detail":"","key_contact":"Anubhav Chakraborty","key_contact_title":"VP – Pirelli India","key_contact_linkedin":"https://www.linkedin.com/in/anubhavc12/","key_contact_affinity":"Badminton, F1, Tennis","affinity_source":"🔶 Inferred – Pirelli F1 + AO presence; no personal statement","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Stella Artois (AB InBev)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Premium Beer","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Football, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (Wimbledon) Sony LIV (Champions League)","key_contact":"Vineet Sharma","key_contact_title":"Global CMO, AB InBev","key_contact_linkedin":"https://www.linkedin.com/in/vineetsharma18/","key_contact_affinity":"Football, Cricket","affinity_source":"Instagram posts","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Mahindra Electric / Mahindra Auto","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Automotive","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (ICC, IPL, Formula E)","key_contact":"Manjari Upadhye","key_contact_title":"Chief Marketing Officer, Automotive Division, Mahindra","key_contact_linkedin":"","key_contact_affinity":"","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Xiaomi India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Consumer Electronics","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, BCCI)","key_contact":"Anuj Sharma","key_contact_title":"Chief Marketing Officer, Xiaomi India","key_contact_linkedin":"","key_contact_affinity":"Adventure sports, gaming","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Natural Diamond Council","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Luxury / Jewellery","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL, WPL, BCCI)","key_contact":"Richa Singh","key_contact_title":"Managing Director – India & Middle East","key_contact_linkedin":"https://www.linkedin.com/in/richa-singh-49a35b1/","key_contact_affinity":"","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"House of Glenfiddich (William Grant)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Premium Whisky / Alcobev","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (ICC WC 2023, Wimbledon 2024, 2025)","key_contact":"Kartik Mohindra","key_contact_title":"Managing Director, India (from Sept 2025); prev CMO & Head of Global Business Dev, Pernod Ricard","key_contact_linkedin":"","key_contact_affinity":"Cricket, Golf, F1","affinity_source":"Kartik Mohindra personally quoted launching Ballantine's India Golf Mixed Pro Challenge at DLF Golf & Country Club (PGTI + WGAI). Also leads Glenfiddich-Aston Martin F1 partnership (car branding, Las Vegas GP). Golf + F1 = clear sports marketing DNA.","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Black & White (Diageo India)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Premium Whisky / Alcobev","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, ICC, BCCI, Wimbledon 2025)","key_contact":"Ruchira Jaitly","key_contact_title":"Chief Marketing Officer, Diageo India","key_contact_linkedin":"","key_contact_affinity":"Diving, water sports","affinity_source":"Verified","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"OnePlus India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Consumer Electronics / Smartphones","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (Premier League, BCCI, IPL, Wimbledon) Sony LIV (French Open 2025)","key_contact":"Ishita Grover","key_contact_title":"Marketing Director","key_contact_linkedin":"https://www.linkedin.com/in/ishita-grover-9866288/","key_contact_affinity":"Esports","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"ACKO General Insurance","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Insurance / Fintech","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (Premier League, IPL) Sony LIV Australian Open 2024 (Co-Presenting & Partner Sponsor)","key_contact":"Ashish Mishra","key_contact_title":"CMO, ACKO","key_contact_linkedin":"","key_contact_affinity":"Cricket","affinity_source":"Inferred","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Johnnie Walker Refreshing Mixer (Diageo)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Alcobev / Non-alcoholic Beverages","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (ICC WC, WWC)","key_contact":"Ruchira Jaitly","key_contact_title":"Chief Marketing Officer, Diageo India","key_contact_linkedin":"","key_contact_affinity":"Diving, water sports","affinity_source":"Verified","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Gatorade India (PepsiCo)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Sports Nutrition / Beverages","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL, ICC WC 2026)","key_contact":"Tarun Bhagat","key_contact_title":"CMO, Beverages (India), PepsiCo India","key_contact_linkedin":"https://www.linkedin.com/in/tarun-bhagat-5571135/","key_contact_affinity":"Cricket","affinity_source":"Inferred","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Yonex India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Sports Equipment","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony (Badminton)","key_contact":"Ishita Guru","key_contact_title":"Managing Director, Yonex Sunrise India","key_contact_linkedin":"https://www.linkedin.com/in/ishitaguru/https://www.linkedin.com/in/ishitaguru/","key_contact_affinity":"","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Lavazza India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"FMCG – Beverages","subcategory":"Premium Coffee","hq_country":"Italy / India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Sony Sports & SonyLiv (Roland Garros); Official Coffee partner for all four Grand Slam tennis tournaments (Wimbledon, Roland Garros, US Open, and Australian Open, Liverpool FC, and Juventus FC","key_contact":"Tanmoy Mukherjee","key_contact_title":"Head of Marketing - Lavazza India","key_contact_linkedin":"https://www.linkedin.com/in/tanmoy-mukherjee-92a5b017/","key_contact_affinity":"Football","affinity_source":"often expressed his loyalty to the sport with the phrase \"Barça till I die\"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"CEAT Tyres","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Auto & Ancillaries","subcategory":"Tyres","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Kabaddi","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, ICC)","key_contact":"Lakshmi Narayanan B","key_contact_title":"VP - Marketing","key_contact_linkedin":"","key_contact_affinity":"Motorcycling, Adventure sports","affinity_source":"🔶 Inferred – India auto exec; no public statement found","priority_tier":"B – Medium Priority","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Jaquar Group","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Luxury Bathroom Fittings","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Football, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (ICC WC, Wimbledon, Premier League)","key_contact":"Sandeep Shukla","key_contact_title":"","key_contact_linkedin":"","key_contact_affinity":"Fitness","affinity_source":"Exchange4media interview; Impact on Net CMO interview","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Kohler India","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Luxury Bathroom Fittings","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (ICC WC, IPL, Premier League, Wimbledon)","key_contact":"Jacob Kuriakose","key_contact_title":"Head of Marketing, Kohler South Asia","key_contact_linkedin":"https://www.linkedin.com/in/kuriakose-jacob/","key_contact_affinity":"","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"HPCL","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Energy / PSU","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioStar Wimbledon 2025 (sponsor)","key_contact":"Amit Garg","key_contact_title":"Director (Marketing), HPCL","key_contact_linkedin":"","key_contact_affinity":"","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"NoBroker.com","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Real Estate Tech","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (ICC WC 2024) Sony LIV (French Open 2024)","key_contact":"Saurabh Garg (CBO)","key_contact_title":"Chief Business Officer, NoBroker.com","key_contact_linkedin":"","key_contact_affinity":"Squash, table tenis and football","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"UltraTech Cement","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Building Materials / B2B","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Kabaddi","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, ICC WTC, PKL); Sony LIV (French Open 2024)","key_contact":"Vivek Agrawal","key_contact_title":"Business Head & CMO, UltraTech Cement","key_contact_linkedin":"","key_contact_affinity":"Cricket, Football","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Lufthansa","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Airline","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (ICC WC 2024); Sony LIV (French Open 2025)","key_contact":"Sunaina K","key_contact_title":"Marketing Lead for South Asia","key_contact_linkedin":"","key_contact_affinity":"Basketball","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Tourism Australia","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Tourism / Government","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (BCCI - AUS vs IND); Sony LIV (Australian Open 2024)","key_contact":"Nishant Kashikar","key_contact_title":"Country Manager – India & Gulf","key_contact_linkedin":"https://www.linkedin.com/in/nishantkashikar/","key_contact_affinity":"Cricket","affinity_source":"Exchange4media 'Chillout' interview: 'loves cricket, music, and siestas'; Campaign India profile","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"MRF Tyres","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Auto & Ancillaries","subcategory":"Tyres","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis, Motorsport","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, ICC, PKL, Formula E)","key_contact":"Arun Mammen","key_contact_title":"Managing Director","key_contact_linkedin":"linkedin.com/in/arunmammen-mrf","key_contact_affinity":"Cricket, Motorsport","affinity_source":"🔶 Inferred – MRF family business background; MRF sponsors cricketers; no personal statement","priority_tier":"C – Monitor","key_contact_strength":"Moderate"},{"sport":"Tennis","tournament":"ATP Tour","name":"Castrol India (BP)","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Lubricants / Automotive","subcategory":"","hq_country":"","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Stra Sports (IPL)","key_contact":"V Kaushik Vedula","key_contact_title":"Vice President & Head of Marketing, Castrol India","key_contact_linkedin":"","key_contact_affinity":"Motorcycling / riding","affinity_source":"","priority_tier":"C – Monitor","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"D'Decor / Sansaar","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Home Décor / Luxury Interiors","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (Wimbledon, IPL) Sony LIV (French Open 2025)","key_contact":"Sanjana Arora","key_contact_title":"Business Head – Sansaar","key_contact_linkedin":"","key_contact_affinity":"Cricket","affinity_source":"","priority_tier":"C – Monitor","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Coromandel International","advertiser_type":"Direct Advertiser","linked_brand":"","category":"Agri-Chemicals / B2B","subcategory":"","hq_country":"","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL)","key_contact":"Shyam Sunder Nalluri","key_contact_title":"Sr. GM – Corporate Comms & Marketing","key_contact_linkedin":"CMO","key_contact_affinity":"-","affinity_source":"","priority_tier":"C – Monitor","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Nike India","advertiser_type":"Lookalike","linked_brand":"Adidas India / Lacoste","category":"Fashion & Apparel","subcategory":"Sportswear & Footwear","hq_country":"USA / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL 2026, ICC WC 2026)","key_contact":"Ashwin Kumar","key_contact_title":"Brand Lead at  Nike","key_contact_linkedin":"","key_contact_affinity":"","affinity_source":"Nike global tennis portfolio (Federer, Serena, Osaka); Nike India sports marketing footprint","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Puma India","advertiser_type":"Lookalike","linked_brand":"Adidas India","category":"Fashion & Apparel","subcategory":"Sportswear","hq_country":"Germany / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL 2026)","key_contact":"Shreya Sachdev","key_contact_title":"Director - Marketing, Puma India","key_contact_linkedin":"https://www.linkedin.com/in/shreya-sachdev-247414117/","key_contact_affinity":"Cricket (LinkedIn posts)","affinity_source":"Puma global Djokovic deal; Puma India brand ambassador portfolio; Campaign India profile","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Samsung India","advertiser_type":"Lookalike","linked_brand":"Apple India / Haier India / OnePlus India","category":"Consumer Electronics","subcategory":"Smartphones & Home Appliances","hq_country":"South Korea / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket (ICC, BCCI), Football (Chelsea FC global), Olympics (official partner), Tennis (Wimbledon hospitality, ATP tech partner historically) Cricket (ICC, BCCI), Football, Olympics, Tennis (Wimbledon VIP globally)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports, JioHotstar (IPL, ICC Tournaments); Sony Sports (Olympics)","key_contact":"Shirish Agarwal","key_contact_title":"Director, Marketing, Samsung India","key_contact_linkedin":"https://www.linkedin.com/in/shirish24/","key_contact_affinity":"","affinity_source":"Samsung India press releases; Campaign India; Exchange4media","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Audi India","advertiser_type":"Lookalike","linked_brand":"BMW India / Mercedes-Benz India","category":"Luxury Automotive","subcategory":"Luxury Vehicles","hq_country":"Germany / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Football, Tennis","fancode_historical":"Yes","advertised_on_competitor":"Yes","competitor_platforms_detail":"SonyLiv (Champions League, Australian Open)","key_contact":"Gaurav Sinha","key_contact_title":"Head - Marketing, PR, Audi India","key_contact_linkedin":"https://www.linkedin.com/in/gaurav-sinha-3493111b/","key_contact_affinity":"No personal sport affinity found publicly.","affinity_source":"Audi global sports portfolio; Autocar India","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Pernod Ricard India (Royal Stag)","advertiser_type":"Lookalike","linked_brand":"House of Glenfiddich / Johnnie Walker (Diageo)","category":"FMCG – Beverages","subcategory":"Premium Spirits / Alcobev","hq_country":"France / India","presence":"Global","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (ICC WC 2023, CT 2025)","key_contact":"Debasree Dasgupta","key_contact_title":"CMO, Pernod Ricard India","key_contact_linkedin":"https://www.linkedin.com/in/debasree-dasgupta/","key_contact_affinity":"","affinity_source":"Exchange4media CMO profile; LinkedIn activity; Campaign India","priority_tier":"A – High Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Maruti Suzuki India","advertiser_type":"Lookalike","linked_brand":"Hyundai Motor India / Kia India / Renault India","category":"Automotive","subcategory":"Passenger Vehicles","hq_country":"India (JV with Suzuki)","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket (BCCI, IPL), Kabaddi, National Rural Games; no tennis footprint Cricket, Kabaddi, Motorsport (MotoGP India)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports, JioHotstar (IPL, ICC, BCCI)","key_contact":"Partho Banerjee","key_contact_title":"Senior Executive Director, Sales & Marketing","key_contact_linkedin":"linkedin.com/in/partho-banerjee","key_contact_affinity":"No personal sport affinity found publicly.","affinity_source":"Maruti Suzuki press releases; AutoCar India; ET Brand Equity","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Jio (Reliance)","advertiser_type":"Lookalike","linked_brand":"Airtel India / Vodafone Idea (Vi)","category":"Telecom","subcategory":"Mobile & Digital Services","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket (IPL title partner via Reliance), Football (ISL – Mumbai City FC), Tennis (JioHotstar airs tennis – indirect) Cricket (IPL/Mumbai Indians), Football (ISL), Basketball (NBA India via JioStar)","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports, JioHotstar (IPL, ICC, BCCI, FIFA)","key_contact":"Reema H. Kundnani","key_contact_title":"CMO - Jio world","key_contact_linkedin":"https://www.linkedin.com/in/reemahkundnani/","key_contact_affinity":"No personal affinity found publicly.","affinity_source":"Jio press releases; ET Brand Equity; Reliance Industries annual report","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"IndiGo (InterGlobe Aviation)","advertiser_type":"Lookalike","linked_brand":"Emirates / Vistara (now Air India)","category":"Travel & Aviation","subcategory":"Airline","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Tennis","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"Star Sports & JioHotstar (IPL, ICC, Wimbledon)","key_contact":"Deepti Sampat","key_contact_title":"Vice President Marketing and Digital","key_contact_linkedin":"https://www.linkedin.com/in/deepti-sampat-45120a1/","key_contact_affinity":"","affinity_source":"ET Brand Equity; LinkedIn profile","priority_tier":"B – Medium Priority","key_contact_strength":""},{"sport":"Tennis","tournament":"ATP Tour","name":"Groww (Nextbillion Technology)","advertiser_type":"Lookalike","linked_brand":"Dezerv","category":"Fintech / Wealth Management","subcategory":"Investment Platform","hq_country":"India","presence":"Regional","current_atp_sponsor":"No","advertised_on_sports":"Yes","which_sports":"Cricket, Football","fancode_historical":"","advertised_on_competitor":"Yes","competitor_platforms_detail":"JioHotstar (IPL 2026, Asia Cup 2023, Premier League 2024-25) SonyLiv (Asia Cup 2025)","key_contact":"Pooja Sharma","key_contact_title":"Senior Director - Brand marketing","key_contact_linkedin":"https://www.linkedin.com/in/pooja-sharma-59404825/","key_contact_affinity":"","affinity_source":"","priority_tier":"B – Medium Priority","key_contact_strength":""}];
+
+// ── STARTUP — load embedded data automatically ────────────────────────────────
+function loadEmbeddedData() {
+  ALL_DATA = EMBEDDED_DATA;
+  filteredData = [...ALL_DATA];
+  rebuildDynamicFilters();
+  document.getElementById('headerSub').textContent =
+    'Sport: Tennis  |  Tournament: ATP Tour  |  ' + ALL_DATA.length + ' brands  |  April 2026';
+  sortData();
+  updateStats();
+  renderView();
+}
+document.addEventListener('DOMContentLoaded', loadEmbeddedData);
+
+// ── FILE LOADING (owner refresh only) ────────────────────────────────────────
+function triggerFilePicker() {
+  document.getElementById('fileInput').click();
+}
+function onFileSelected(e) {
+  const file = e.target.files[0];
+  if (file) loadExcelFile(file);
+  e.target.value = ''; // reset so same file can be re-loaded
+}
+
+function loadExcelFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      parseSheet(ws, file.name);
+    } catch(err) {
+      alert('Could not read file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Column header → field name mapping
+// IMPORTANT: ordered longest/most-specific first to avoid short patterns swallowing longer ones
+const COL_MAP = [
+  ['partnered with tournament', 'current_atp_sponsor'],
+  ['advertised on competitor',  'advertised_on_competitor'],
+  ['competitor platforms',      'competitor_platforms_detail'],
+  ['advertised on sports',      'advertised_on_sports'],
+  ['fancode historical',        'fancode_historical'],
+  ['which sport',               'which_sports'],
+  ['source of key',             'affinity_source'],
+  ['sport affinity',            'key_contact_affinity'],
+  ['key contact',               'key_contact'],
+  ['advertiser type',           'advertiser_type'],
+  ['linked brand',              'linked_brand'],
+  ['hq country',                'hq_country'],
+  ['sub-category',              'subcategory'],
+  ['sub category',              'subcategory'],
+  ['priority tier',             'priority_tier'],
+  ['advertiser',                'name'],
+  ['tournament',                'tournament'],
+  ['presence',                  'presence'],
+  ['category',                  'category'],
+  ['linkedin',                  'key_contact_linkedin'],
+  ['title',                     'key_contact_title'],
+  ['sport',                     'sport'],
+];
+
+function matchHeader(raw) {
+  // Handle rich-text objects SheetJS may return for formatted cells
+  let str;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    str = raw.v !== undefined ? String(raw.v) : (raw.w || raw.h || '');
+  } else {
+    str = String(raw === null || raw === undefined ? '' : raw);
+  }
+  // Strip ALL whitespace variants (CRLF, LF, CR, tab) and clean up
+  const clean = str.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim();
+  for (const [pattern, field] of COL_MAP) {
+    if (clean.includes(pattern)) return field;
+  }
+  return null;
+}
+
+// Fixed column order for FanCode Intelligence Database (fallback for un-matched cells)
+const FIXED_FIELDS = [
+  'sport','tournament','name','advertiser_type','linked_brand',
+  'category','subcategory','hq_country','presence','current_atp_sponsor',
+  'advertised_on_sports','which_sports','fancode_historical',
+  'advertised_on_competitor','competitor_platforms_detail',
+  'key_contact','key_contact_title','key_contact_linkedin',
+  'key_contact_affinity','affinity_source','priority_tier'
+];
+
+function parseSheet(ws, fileName) {
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  // Find header row: first row where ≥4 cells match known columns
+  let headerIdx = -1;
+  let colFields = [];
+  for (let i = 0; i < Math.min(raw.length, 10); i++) {
+    const matched = raw[i].map(matchHeader);
+    const hits = matched.filter(Boolean).length;
+    if (hits >= 4) { headerIdx = i; colFields = matched; break; }
+  }
+  if (headerIdx < 0) { alert('Could not find header row. Make sure you are loading the FanCode Intelligence Excel file.'); return; }
+
+  // PATCH: fill any un-matched columns using known fixed positions
+  // This handles merged cells, CRLF edge cases, and formatting quirks in SheetJS
+  colFields = colFields.map((f, i) => f !== null ? f : (i < FIXED_FIELDS.length ? FIXED_FIELDS[i] : null));
+  const detectedCount = colFields.filter(Boolean).length;
+  console.log('[FanCode] Columns detected via pattern:', colFields.filter(Boolean).length, '| After fallback:', detectedCount, '| Fields:', colFields);
+
+  const records = [];
+  for (let i = headerIdx + 1; i < raw.length; i++) {
+    const row = raw[i];
+    const nameIdx = colFields.indexOf('name');
+    const nameVal = nameIdx >= 0 ? String(row[nameIdx] || '').trim() : '';
+    if (!nameVal || nameVal.startsWith('▼') || nameVal.startsWith('PITCH')) continue;
+
+    const r = {};
+    colFields.forEach((field, ci) => {
+      if (field) r[field] = String(row[ci] || '').trim();
+    });
+
+    // Derive affinity strength from affinity_source if not present
+    if (!r.key_contact_strength) {
+      const src = (r.affinity_source || '').toLowerCase();
+      if (src.startsWith('✅') || src.includes('verified')) {
+        const aff = (r.key_contact_affinity || '').toLowerCase();
+        if (aff.includes('tennis') && aff.includes('personal')) r.key_contact_strength = 'Very High';
+        else if (aff.includes('tennis')) r.key_contact_strength = 'High';
+        else r.key_contact_strength = 'Moderate';
+      } else if (src.startsWith('🔶') || src.includes('inferred')) {
+        r.key_contact_strength = 'Moderate';
+      } else {
+        r.key_contact_strength = '';
+      }
+    }
+    records.push(r);
+  }
+
+  if (records.length === 0) { alert('No data rows found in this file.'); return; }
+
+  ALL_DATA = records;
+  filteredData = [...ALL_DATA];
+
+  // Rebuild dynamic filter checkboxes and refresh the view
+  rebuildDynamicFilters();
+  document.getElementById('headerSub').textContent =
+    'Sport: Tennis  |  Tournament: ATP Tour  |  ' + records.length + ' brands  |  Refreshed from Excel';
+
+  // Flash confirmation on the button
+  const btn = document.getElementById('reloadBtn');
+  btn.textContent = '✓ Refreshed!';
+  btn.style.background = 'rgba(34,197,94,0.25)';
+  setTimeout(() => { btn.textContent = '↺ Refresh from Excel'; btn.style.background = ''; }, 2500);
+
+  sortData();
+  updateStats();
+  renderView();
+}
+
+function rebuildDynamicFilters() {
+  function buildList(containerId, values, prefix) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = '';
+    values.forEach((v, i) => {
+      const id = prefix + i;
+      const item = document.createElement('div');
+      item.className = 'checkbox-item';
+      item.innerHTML = `<input type="checkbox" id="${id}" value="${v.replace(/"/g,'&quot;')}" onchange="applyFilters()"><label for="${id}">${v}</label>`;
+      el.appendChild(item);
+    });
+  }
+  const cats = [...new Set(ALL_DATA.map(r => r.category).filter(Boolean))].sort();
+  buildList('filterCategory', cats, 'cat');
+  const hqs = [...new Set(ALL_DATA.map(r => r.hq_country).filter(Boolean))].sort();
+  buildList('filterHQ', hqs, 'hq');
+}
+
+// ── BADGES ────────────────────────────────────────────────────────────────────
+function priBadge(p) {
+  if (!p) return '';
+  if (p.includes('A –')) return `<span class="badge badge-a">${p}</span>`;
+  if (p.includes('B –')) return `<span class="badge badge-b">${p}</span>`;
+  if (p.includes('C –')) return `<span class="badge badge-c">${p}</span>`;
+  return `<span class="badge">${p}</span>`;
+}
+function typeBadge(t) {
+  if (!t) return '';
+  if (t === 'Direct Advertiser') return `<span class="badge badge-direct">Direct</span>`;
+  if (t.includes('Pitch')) return `<span class="badge badge-pitch">Pitch Target</span>`;
+  return `<span class="badge">${t}</span>`;
+}
+function affBadge(s) {
+  if (!s) return '';
+  const m = { 'Extreme':'badge-extreme','Very High':'badge-vh','High':'badge-high','Moderate-High':'badge-mod','Moderate':'badge-mod','Low':'badge-low' };
+  return `<span class="badge ${m[s] || 'badge-low'}">${s}</span>`;
+}
+function ynBadge(v) {
+  if (!v) return '<span style="color:#94A3B8">—</span>';
+  const yes = String(v).toLowerCase().startsWith('y');
+  return `<span class="badge badge-${yes?'yes':'no'}">${v}</span>`;
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function getChecked(id) { return [...document.querySelectorAll(`#${id} input:checked`)].map(x => x.value); }
+function setBadge(id, arr) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = arr.length;
+  el.classList.toggle('hidden', arr.length === 0);
+}
+
+function applyFilters() {
+  const q    = document.getElementById('searchInput').value.toLowerCase();
+  const types  = getChecked('filterType');
+  const cats   = getChecked('filterCategory');
+  const hqs    = getChecked('filterHQ');
+  const atps   = getChecked('filterATP');
+  const affs   = getChecked('filterAffinity');
+  const sports = getChecked('filterAdvSports');
+  const fcs    = getChecked('filterFanCode');
+  const pris   = getChecked('filterPriority');
+
+  setBadge('cntType', types); setBadge('cntCategory', cats); setBadge('cntHQ', hqs);
+  setBadge('cntATP', atps); setBadge('cntAffinity', affs); setBadge('cntAdvSports', sports);
+  setBadge('cntFanCode', fcs); setBadge('cntPriority', pris);
+
+  filteredData = ALL_DATA.filter(r => {
+    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
+    if (types.length  && !types.includes(r.advertiser_type))        return false;
+    if (cats.length   && !cats.includes(r.category))                return false;
+    if (hqs.length    && !hqs.includes(r.hq_country))               return false;
+    if (atps.length   && !atps.includes(r.current_atp_sponsor))     return false;
+    if (affs.length   && !affs.includes(r.key_contact_strength))    return false;
+    if (sports.length && !sports.includes(r.advertised_on_sports))  return false;
+    if (fcs.length    && !fcs.includes(r.fancode_historical))       return false;
+    if (pris.length   && !pris.includes(r.priority_tier))           return false;
+    return true;
+  });
+  sortData(); updateStats(); renderView();
+}
+
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  ['filterType','filterCategory','filterHQ','filterATP','filterAffinity',
+   'filterAdvSports','filterFanCode','filterPriority'].forEach(id => {
+    document.querySelectorAll(`#${id} input`).forEach(x => x.checked = false);
+  });
+  applyFilters();
+}
+
+// ── SORT ──────────────────────────────────────────────────────────────────────
+const PRI_ORDER = { 'A – High Priority': 1, 'B – Medium Priority': 2, 'C – Monitor': 3 };
+function sortBy(field) {
+  if (sortField === field) sortDir *= -1; else { sortField = field; sortDir = 1; }
+  sortData(); renderView();
+}
+function sortData() {
+  filteredData.sort((a, b) => {
+    let av = a[sortField] || '', bv = b[sortField] || '';
+    if (sortField === 'priority_tier') { av = PRI_ORDER[av]||9; bv = PRI_ORDER[bv]||9; return (av-bv)*sortDir; }
+    if (av < bv) return -sortDir; if (av > bv) return sortDir; return 0;
+  });
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  const d = filteredData;
+  document.getElementById('resultCount').textContent = d.length;
+  document.getElementById('statTotal').textContent   = d.length;
+  document.getElementById('statDirect').textContent  = d.filter(r => r.advertiser_type === 'Direct Advertiser').length;
+  document.getElementById('statPitch').textContent   = d.filter(r => r.advertiser_type && r.advertiser_type.includes('Pitch')).length;
+  document.getElementById('statA').textContent       = d.filter(r => r.priority_tier === 'A – High Priority').length;
+  document.getElementById('statB').textContent       = d.filter(r => r.priority_tier === 'B – Medium Priority').length;
+  document.getElementById('statATP').textContent     = d.filter(r => r.current_atp_sponsor === 'Yes').length;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderView() { currentView === 'table' ? renderTable() : renderCards(); }
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  document.getElementById('noResultsTable').classList.add('hidden');
+  if (!filteredData.length) { document.getElementById('noResultsTable').classList.remove('hidden'); return; }
+
+  const directs = filteredData.filter(r => r.advertiser_type === 'Direct Advertiser');
+  const pitches = filteredData.filter(r => r.advertiser_type !== 'Direct Advertiser');
+
+  function addRows(rows) {
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.onclick = () => openModal(r);
+      const cleanSrc = (r.affinity_source || '').replace(/^[✅❌⚠️🔶❓]\s*/u, '');
+      tr.innerHTML = `
+        <td style="font-size:11px;color:#64748B">${escH(r.sport)||'Tennis'}</td>
+        <td><strong style="font-size:12px">${escH(r.name)}</strong>${r.linked_brand?`<div style="font-size:10px;color:#7C3AED;margin-top:2px">= ${escH(r.linked_brand)}</div>`:''}</td>
+        <td>${typeBadge(r.advertiser_type)}</td>
+        <td><div style="font-size:11px;color:#64748B">${escH(r.category)}</div><div style="font-size:10px;color:#94A3B8">${escH(r.subcategory)}</div></td>
+        <td style="font-size:11px">${escH(r.hq_country)}</td>
+        <td style="font-size:11px">${escH(r.presence)||'—'}</td>
+        <td>${ynBadge(r.current_atp_sponsor)}</td>
+        <td>${ynBadge(r.advertised_on_sports)}</td>
+        <td><div class="cell-clip" style="font-size:11px">${escH(r.which_sports)}</div></td>
+        <td>${ynBadge(r.fancode_historical)}</td>
+        <td>${ynBadge(r.advertised_on_competitor)}</td>
+        <td><div class="cell-clip" style="font-size:11px;color:#64748B">${escH(r.competitor_platforms_detail)}</div></td>
+        <td><div style="font-size:12px;font-weight:600">${escH(r.key_contact)}</div><div style="font-size:10px;color:#64748B">${escH(r.key_contact_title)}</div></td>
+        <td><div class="cell-clip" style="font-size:11px">${escH(r.key_contact_affinity)}</div></td>
+        <td><div class="cell-clip" style="font-size:10px;color:#64748B;font-style:italic">${escH(cleanSrc)}</div></td>
+        <td>${affBadge(r.key_contact_strength)}</td>
+        <td>${priBadge(r.priority_tier)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function addSep(label, count) {
+    const sep = document.createElement('tr');
+    sep.className = 'sep-row';
+    sep.innerHTML = `<td colspan="17">${label} (${count})</td>`;
+    tbody.appendChild(sep);
+  }
+
+  if (directs.length) { addSep('Direct Advertisers', directs.length); addRows(directs); }
+  if (pitches.length) { addSep('Pitch Targets – Indian Equivalents', pitches.length); addRows(pitches); }
+}
+
+function renderCards() {
+  const grid = document.getElementById('viewCard');
+  grid.innerHTML = '';
+  document.getElementById('noResultsCard').classList.add('hidden');
+  if (!filteredData.length) { document.getElementById('noResultsCard').classList.remove('hidden'); return; }
+
+  const directs = filteredData.filter(r => r.advertiser_type === 'Direct Advertiser');
+  const pitches = filteredData.filter(r => r.advertiser_type !== 'Direct Advertiser');
+
+  function addCards(rows, label) {
+    if (!rows.length) return;
+    const sep = document.createElement('div');
+    sep.className = 'card-sep';
+    sep.textContent = `${label} (${rows.length})`;
+    grid.appendChild(sep);
+    rows.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.onclick = () => openModal(r);
+      const aff = r.key_contact_affinity || '';
+      card.innerHTML = `
+        <div class="card-header"><div><div class="card-name">${escH(r.name)}</div><div class="card-cat">${escH(r.category)}</div></div>${priBadge(r.priority_tier)}</div>
+        <div class="card-row">${typeBadge(r.advertiser_type)}${r.current_atp_sponsor==='Yes'?'<span class="badge badge-yes">ATP Partner</span>':''}${affBadge(r.key_contact_strength)}</div>
+        <div class="card-div"></div>
+        <div class="card-field"><strong>Key Contact</strong><span style="font-size:12px">${escH(r.key_contact)}${r.key_contact_title?' · '+r.key_contact_title:''}</span></div>
+        <div class="card-field"><strong>Sport Affinity</strong><span style="font-size:11px">${escH(aff.substring(0,100))}${aff.length>100?'…':''}</span></div>`;
+      grid.appendChild(card);
+    });
+  }
+  addCards(directs, 'Direct Advertisers');
+  addCards(pitches, 'Pitch Targets – Indian Equivalents');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(r) {
+  document.getElementById('mTitle').textContent = r.name;
+  document.getElementById('mBadges').innerHTML = `
+    ${priBadge(r.priority_tier)} ${typeBadge(r.advertiser_type)}
+    ${r.current_atp_sponsor==='Yes'?'<span class="badge badge-yes">ATP Partner</span>':''}
+    ${r.advertised_on_sports==='Yes'?'<span class="badge badge-yes">Sports Advertiser</span>':''}
+    ${r.fancode_historical==='Yes'?'<span class="badge badge-yes">FanCode Historical</span>':''}`;
+
+  const cleanSrc = (r.affinity_source || '').replace(/^[✅❌⚠️🔶❓]\s*/u, '');
+  document.getElementById('mBody').innerHTML = `
+    <div class="modal-grid">
+      <div class="modal-field"><label>Sport</label><span>${escH(r.sport)||'Tennis'}</span></div>
+      <div class="modal-field"><label>Tournament</label><span>${escH(r.tournament)||'ATP Tour'}</span></div>
+      <div class="modal-field"><label>Category</label><span>${escH(r.category)}</span></div>
+      <div class="modal-field"><label>Sub-Category</label><span>${escH(r.subcategory)||'—'}</span></div>
+      <div class="modal-field"><label>HQ Country</label><span>${escH(r.hq_country)||'—'}</span></div>
+      <div class="modal-field"><label>Presence</label><span>${escH(r.presence)||'—'}</span></div>
+      ${r.linked_brand?`<div class="modal-field"><label>Linked Brand</label><span>${escH(r.linked_brand)}</span></div>`:''}
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Sports Advertising</div>
+      <div class="modal-grid">
+        <div class="modal-field"><label>Partnered with Tournament Body?</label><span>${escH(r.current_atp_sponsor)||'—'}</span></div>
+        <div class="modal-field"><label>Advertised on Sports?</label><span>${escH(r.advertised_on_sports)||'—'}</span></div>
+        <div class="modal-field" style="grid-column:1/-1"><label>Which Sport(s) Has Brand Advertised On?</label><span style="white-space:pre-line">${escH(r.which_sports)||'—'}</span></div>
+        <div class="modal-field"><label>FanCode Historical Advertiser?</label><span>${escH(r.fancode_historical)||'—'}</span></div>
+        <div class="modal-field"><label>Advertised on Competitor Platforms?</label><span>${escH(r.advertised_on_competitor)||'—'}</span></div>
+        <div class="modal-field" style="grid-column:1/-1"><label>Competitor Platforms &amp; Tournaments Advertised On</label><span style="white-space:pre-line">${escH(r.competitor_platforms_detail)||'—'}</span></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Key Contact (India Mktg Head / CEO)</div>
+      <div class="modal-grid">
+        <div class="modal-field"><label>Name</label><span style="font-weight:600">${escH(r.key_contact)||'—'}</span></div>
+        <div class="modal-field"><label>Title</label><span>${escH(r.key_contact_title)||'—'}</span></div>
+        <div class="modal-field"><label>LinkedIn</label><span>${r.key_contact_linkedin?`<a href="https://${r.key_contact_linkedin}" target="_blank" style="color:#1E3A5F">${escH(r.key_contact_linkedin)}</a>`:'—'}</span></div>
+        <div class="modal-field"><label>Affinity Strength</label><span>${affBadge(r.key_contact_strength)||'—'}</span></div>
+        <div class="affinity-box">
+          <div class="aff-label">Sport Affinity of Key Contact</div>
+          <div class="aff-text">${escH(r.key_contact_affinity)||'—'}</div>
+          ${cleanSrc?`<div class="aff-source">Source: ${escH(cleanSrc)}</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal(e) { if (e.target === document.getElementById('modalOverlay')) closeModalBtn(); }
+function closeModalBtn() { document.getElementById('modalOverlay').classList.add('hidden'); }
+
+// ── VIEW TOGGLE ───────────────────────────────────────────────────────────────
+function setView(v) {
+  currentView = v;
+  document.getElementById('viewTable').classList.toggle('hidden', v !== 'table');
+  document.getElementById('viewCard').classList.toggle('hidden', v !== 'card');
+  document.getElementById('noResultsCard').classList.add('hidden');
+  document.getElementById('tabTable').classList.toggle('active', v === 'table');
+  document.getElementById('tabCard').classList.toggle('active', v === 'card');
+  renderView();
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function doExport() {
+  const headers = [
+    'Sport','Tournament','Advertiser','Advertiser Type','Linked Brand (Pitch Target Only)',
+    'Category','Sub-Category','HQ Country','Presence (Global/National/Regional)',
+    'Partnered with Tournament Body?','Advertised on Sports?',
+    'Which Sport(s) Has Brand Advertised On?','FanCode Historical Advertiser? (Any Property 2023+)',
+    'Advertised on Competitor Platforms?','Competitor Platforms & Tournaments Advertised On',
+    'Key Contact (India Mktg Head / CEO)','Title','LinkedIn URL',
+    'Sport Affinity of Key Contact',
+    "Source of Key Contact's Sport Affinity (Interviews / Social / Press)",
+    'Priority Tier'
+  ];
+  const directs = filteredData.filter(r => r.advertiser_type === 'Direct Advertiser');
+  const pitches = filteredData.filter(r => r.advertiser_type !== 'Direct Advertiser');
+  const rows = [headers];
+  [...directs, ...pitches].forEach(r => {
+    const cleanSrc = (r.affinity_source || '').replace(/^[✅❌⚠️🔶❓]\s*/u, '');
+    rows.push([
+      r.sport||'Tennis', r.tournament||'ATP Tour',
+      r.name||'', r.advertiser_type||'', r.linked_brand||'',
+      r.category||'', r.subcategory||'', r.hq_country||'', r.presence||'',
+      r.current_atp_sponsor||'', r.advertised_on_sports||'',
+      r.which_sports||'', r.fancode_historical||'',
+      r.advertised_on_competitor||'', r.competitor_platforms_detail||'',
+      r.key_contact||'', r.key_contact_title||'', r.key_contact_linkedin||'',
+      r.key_contact_affinity||'', cleanSrc, r.priority_tier||''
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = Array(headers.length).fill({wch:22});
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sponsor Intelligence DB');
+  XLSX.writeFile(wb, `FanCode_X_Tour_X_Advertiser_Intelligence_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function escH(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
