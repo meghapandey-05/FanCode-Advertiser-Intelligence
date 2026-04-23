@@ -221,13 +221,11 @@
     <div class="stat-divider"></div>
     <div class="stat"><div class="stat-num" id="statDirect" style="color:#93C5FD">—</div><div class="stat-label">Direct Advertisers</div></div>
     <div class="stat-divider"></div>
-    <div class="stat"><div class="stat-num" id="statPitch" style="color:#C4B5FD">—</div><div class="stat-label">Pitch Targets</div></div>
-    <div class="stat-divider"></div>
     <div class="stat"><div class="stat-num" id="statA" style="color:#FCA5A5">—</div><div class="stat-label">Priority A</div></div>
     <div class="stat-divider"></div>
     <div class="stat"><div class="stat-num" id="statB" style="color:#FDE68A">—</div><div class="stat-label">Priority B</div></div>
     <div class="stat-divider"></div>
-    <div class="stat"><div class="stat-num" id="statATP" style="color:#86EFAC">—</div><div class="stat-label">ATP Partners</div></div>
+    <div class="stat"><div class="stat-num" id="statATP" style="color:#86EFAC">—</div><div class="stat-label">Tournament Body Partners</div></div>
   </div>
 
   <!-- LAYOUT -->
@@ -259,7 +257,7 @@
         <div class="filter-scroll" id="filterCategory"></div>
       </div>
       <div class="filter-group">
-        <div class="filter-label">ATP Tournament Partner? <span class="active-count hidden" id="cntATP"></span></div>
+        <div class="filter-label">Tournament Body Partner? <span class="active-count hidden" id="cntATP"></span></div>
         <div class="checkbox-group" id="filterATP">
           <div class="checkbox-item"><input type="checkbox" id="atpY" value="Yes" onchange="applyFilters()"><label for="atpY">Yes</label></div>
           <div class="checkbox-item"><input type="checkbox" id="atpN" value="No" onchange="applyFilters()"><label for="atpN">No</label></div>
@@ -606,7 +604,6 @@ function updateStats() {
   document.getElementById('resultCount').textContent = d.length;
   document.getElementById('statTotal').textContent   = d.length;
   document.getElementById('statDirect').textContent  = d.filter(r => r.advertiser_type === 'Direct Advertiser').length;
-  document.getElementById('statPitch').textContent   = d.filter(r => r.advertiser_type && r.advertiser_type.includes('Pitch')).length;
   document.getElementById('statA').textContent       = d.filter(r => r.priority_tier === 'A – High Priority').length;
   document.getElementById('statB').textContent       = d.filter(r => r.priority_tier === 'B – Medium Priority').length;
   document.getElementById('statATP').textContent     = d.filter(r => r.current_atp_sponsor === 'Yes').length;
@@ -685,7 +682,7 @@ function renderCards() {
       const aff = r.key_contact_affinity || '';
       card.innerHTML = `
         <div class="card-header"><div><div class="card-name">${escH(r.name)}</div><div class="card-cat">${escH(r.category)}</div></div>${priBadge(r.priority_tier)}</div>
-        <div class="card-row">${typeBadge(r.advertiser_type)}${r.current_atp_sponsor==='Yes'?'<span class="badge badge-yes">ATP Partner</span>':''}${affBadge(r.key_contact_strength)}</div>
+        <div class="card-row">${typeBadge(r.advertiser_type)}${r.current_atp_sponsor==='Yes'?'<span class="badge badge-yes">Tournament Partner</span>':''}${affBadge(r.key_contact_strength)}</div>
         <div class="card-div"></div>
         <div class="card-field"><strong>Key Contact</strong><span style="font-size:12px">${escH(r.key_contact)}${r.key_contact_title?' · '+r.key_contact_title:''}</span></div>
         <div class="card-field"><strong>Sport Affinity</strong><span style="font-size:11px">${escH(aff.substring(0,100))}${aff.length>100?'…':''}</span></div>`;
@@ -701,7 +698,7 @@ function openModal(r) {
   document.getElementById('mTitle').textContent = r.name;
   document.getElementById('mBadges').innerHTML = `
     ${priBadge(r.priority_tier)} ${typeBadge(r.advertiser_type)}
-    ${r.current_atp_sponsor==='Yes'?'<span class="badge badge-yes">ATP Partner</span>':''}
+    ${r.current_atp_sponsor==='Yes'?'<span class="badge badge-yes">Tournament Partner</span>':''}
     ${r.advertised_on_sports==='Yes'?'<span class="badge badge-yes">Sports Advertiser</span>':''}
     ${r.fancode_historical==='Yes'?'<span class="badge badge-yes">FanCode Historical</span>':''}`;
 
