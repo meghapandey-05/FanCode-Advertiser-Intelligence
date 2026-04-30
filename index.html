@@ -375,18 +375,12 @@ const GH_FILE  = 'index.html';
 function getGHToken() {
   let t = localStorage.getItem('gh_pat');
   if (!t) {
-    t = prompt(
-      'Enter your GitHub Personal Access Token\n\n' +
-      'How to create one:\n' +
-      '1. Go to github.com → Settings → Developer settings\n' +
-      '2. Personal access tokens → Tokens (classic) → Generate new token\n' +
-      '3. Tick the "repo" scope → Generate\n\n' +
-      'This is stored only in your browser and sent only to GitHub.'
-    );
+    t = prompt('Enter your GitHub Personal Access Token (ghp_...):\n\nIt is stored only in your browser and sent only to GitHub.');
     if (t) localStorage.setItem('gh_pat', t.trim());
   }
   return t ? t.trim() : null;
 }
+function clearGHToken() { localStorage.removeItem('gh_pat'); }
 
 function buildUpdatedHTML() {
   let html = document.documentElement.outerHTML;
@@ -406,11 +400,18 @@ async function pushToGitHub(htmlContent) {
   const token = getGHToken();
   if (!token) throw new Error('No GitHub token provided');
   const headers = { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' };
-  const apiURL = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`;
+
+  // Auto-detect GitHub username from token
+  const userRes = await fetch('https://api.github.com/user', { headers });
+  if (userRes.status === 401) { localStorage.removeItem('gh_pat'); throw new Error('Token invalid or expired — please try again'); }
+  if (!userRes.ok) throw new Error('Could not verify token: ' + userRes.status);
+  const { login } = await userRes.json();
+
+  const apiURL = `https://api.github.com/repos/${login}/${GH_REPO}/contents/${GH_FILE}`;
 
   // Get current SHA
   const getRes = await fetch(apiURL, { headers });
-  if (getRes.status === 401) { localStorage.removeItem('gh_pat'); throw new Error('Token invalid or expired — please try again'); }
+  if (getRes.status === 404) throw new Error(`Repo not found: ${login}/${GH_REPO}. Make sure the repo name matches exactly.`);
   if (!getRes.ok) throw new Error('GitHub API error ' + getRes.status);
   const { sha } = await getRes.json();
 
