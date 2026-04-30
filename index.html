@@ -205,9 +205,8 @@
     </div>
   </div>
   <div class="header-actions">
-    <button class="btn btn-secondary" id="reloadBtn" onclick="document.getElementById('fileInput').click()" title="Upload latest Excel to refresh data">&#8635; Refresh from Excel</button>
+    <button class="btn btn-secondary" id="reloadBtn" onclick="document.getElementById('fileInput').click()" title="Upload latest Excel — auto-updates live site for everyone">&#8635; Refresh from Excel</button>
     <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(event)">
-    <button class="btn btn-secondary" id="savePortalBtn" onclick="downloadUpdatedPortal()" title="Download updated index.html to upload to GitHub" style="display:none;background:rgba(34,197,94,0.2);border-color:rgba(34,197,94,0.5)">&#8659; Download Updated Portal</button>
     <button class="btn btn-primary" id="exportBtn" onclick="doExport()">&#8659; Export to Excel</button>
   </div>
 </div>
@@ -368,6 +367,73 @@ function loadEmbeddedData() {
 }
 document.addEventListener('DOMContentLoaded', loadEmbeddedData);
 
+// ── GITHUB CONFIG ─────────────────────────────────────────────────────────────
+const GH_OWNER = 'meghapandey-05';
+const GH_REPO  = 'FanCode-Advertiser-Intelligence';
+const GH_FILE  = 'index.html';
+
+function getGHToken() {
+  let t = localStorage.getItem('gh_pat');
+  if (!t) {
+    t = prompt(
+      'Enter your GitHub Personal Access Token\n\n' +
+      'How to create one:\n' +
+      '1. Go to github.com → Settings → Developer settings\n' +
+      '2. Personal access tokens → Tokens (classic) → Generate new token\n' +
+      '3. Tick the "repo" scope → Generate\n\n' +
+      'This is stored only in your browser and sent only to GitHub.'
+    );
+    if (t) localStorage.setItem('gh_pat', t.trim());
+  }
+  return t ? t.trim() : null;
+}
+
+function buildUpdatedHTML() {
+  let html = document.documentElement.outerHTML;
+  const marker = 'const EMBEDDED_DATA = ';
+  const start = html.indexOf(marker);
+  if (start < 0) throw new Error('Could not locate embedded data block');
+  const arrStart = html.indexOf('[', start + marker.length);
+  let depth = 0, arrEnd = arrStart;
+  for (let i = arrStart; i < html.length; i++) {
+    if (html[i] === '[') depth++;
+    else if (html[i] === ']') { depth--; if (depth === 0) { arrEnd = i; break; } }
+  }
+  return html.slice(0, arrStart) + JSON.stringify(ALL_DATA) + html.slice(arrEnd + 1);
+}
+
+async function pushToGitHub(htmlContent) {
+  const token = getGHToken();
+  if (!token) throw new Error('No GitHub token provided');
+  const headers = { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' };
+  const apiURL = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`;
+
+  // Get current SHA
+  const getRes = await fetch(apiURL, { headers });
+  if (getRes.status === 401) { localStorage.removeItem('gh_pat'); throw new Error('Token invalid or expired — please try again'); }
+  if (!getRes.ok) throw new Error('GitHub API error ' + getRes.status);
+  const { sha } = await getRes.json();
+
+  // Encode HTML to base64 (handles Unicode/emoji)
+  const bytes = new TextEncoder().encode(htmlContent);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  const b64 = btoa(binary);
+
+  // Commit updated file
+  const putRes = await fetch(apiURL, {
+    method: 'PUT', headers,
+    body: JSON.stringify({
+      message: 'Portal data updated from Excel – ' + new Date().toISOString().slice(0,10),
+      content: b64, sha
+    })
+  });
+  if (!putRes.ok) {
+    const err = await putRes.json().catch(() => ({}));
+    throw new Error(err.message || 'Commit failed: ' + putRes.status);
+  }
+}
+
 // ── REFRESH FROM EXCEL ────────────────────────────────────────────────────────
 function handleExcelUpload(event) {
   const file = event.target.files[0];
@@ -382,16 +448,39 @@ function handleExcelUpload(event) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
       const records = excelRowsToRecords(raw);
-      if (!records.length) throw new Error('No data rows found in Excel');
+      if (!records.length) throw new Error('No data rows found — check the Excel format');
       ALL_DATA = records; filteredData = [...ALL_DATA];
       rebuildDynamicFilters();
       const sports = [...new Set(ALL_DATA.map(r => r.sport || 'Tennis').filter(Boolean))].sort().join(' | ');
       document.getElementById('headerSub').textContent =
-        'Sport: ' + sports + '  |  ' + ALL_DATA.length + ' brands  |  Refreshed from Excel';
-      btn.textContent = '✓ Loaded!'; btn.style.background = 'rgba(34,197,94,0.25)';
-      setTimeout(() => { btn.textContent = '↺ Refresh from Excel'; btn.style.background = ''; btn.disabled = false; }, 2500);
-      document.getElementById('savePortalBtn').style.display = 'flex';
+        'Sport: ' + sports + '  |  ' + ALL_DATA.length + ' brands  |  Pushing to GitHub…';
       sortData(); updateStats(); renderView();
+
+      // Auto-push to GitHub so everyone sees the update
+      btn.textContent = '⟳ Pushing…';
+      const updatedHTML = buildUpdatedHTML();
+      pushToGitHub(updatedHTML)
+        .then(() => {
+          btn.textContent = '✓ Live in ~1 min!';
+          btn.style.background = 'rgba(34,197,94,0.25)';
+          document.getElementById('headerSub').textContent =
+            'Sport: ' + sports + '  |  ' + ALL_DATA.length + ' brands  |  Updated – live in ~1 min';
+          setTimeout(() => { btn.textContent = '↺ Refresh from Excel'; btn.style.background = ''; btn.disabled = false; }, 4000);
+        })
+        .catch(err => {
+          // Push failed — fall back to download
+          btn.textContent = '↺ Refresh from Excel'; btn.style.background = ''; btn.disabled = false;
+          document.getElementById('headerSub').textContent =
+            'Sport: ' + sports + '  |  ' + ALL_DATA.length + ' brands  |  Refreshed locally';
+          if (confirm('Could not push to GitHub: ' + err.message + '\n\nDownload the updated file instead to upload manually?')) {
+            const blob = new Blob([updatedHTML], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'index.html';
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+          }
+        });
     } catch(err) {
       btn.textContent = '↺ Refresh from Excel'; btn.disabled = false;
       alert('Could not load Excel: ' + err.message);
@@ -399,35 +488,6 @@ function handleExcelUpload(event) {
     event.target.value = '';
   };
   reader.readAsArrayBuffer(file);
-}
-
-// ── DOWNLOAD UPDATED PORTAL ───────────────────────────────────────────────────
-function downloadUpdatedPortal() {
-  try {
-    let html = document.documentElement.outerHTML;
-    // Find and replace the embedded data block with current ALL_DATA
-    const marker = 'const EMBEDDED_DATA = ';
-    const start = html.indexOf(marker);
-    if (start < 0) { alert('Could not locate embedded data in page.'); return; }
-    const arrStart = html.indexOf('[', start + marker.length);
-    // Walk to find matching closing bracket
-    let depth = 0, arrEnd = arrStart;
-    for (let i = arrStart; i < html.length; i++) {
-      if (html[i] === '[') depth++;
-      else if (html[i] === ']') { depth--; if (depth === 0) { arrEnd = i; break; } }
-    }
-    const newJson = JSON.stringify(ALL_DATA);
-    const updated = html.slice(0, arrStart) + newJson + html.slice(arrEnd + 1);
-    const blob = new Blob([updated], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'index.html';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch(err) {
-    alert('Could not generate updated portal: ' + err.message);
-  }
 }
 
 function excelRowsToRecords(rows) {
