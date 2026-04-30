@@ -207,6 +207,7 @@
   <div class="header-actions">
     <button class="btn btn-secondary" id="reloadBtn" onclick="document.getElementById('fileInput').click()" title="Upload latest Excel to refresh data">&#8635; Refresh from Excel</button>
     <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(event)">
+    <button class="btn btn-secondary" id="savePortalBtn" onclick="downloadUpdatedPortal()" title="Download updated index.html to upload to GitHub" style="display:none;background:rgba(34,197,94,0.2);border-color:rgba(34,197,94,0.5)">&#8659; Download Updated Portal</button>
     <button class="btn btn-primary" id="exportBtn" onclick="doExport()">&#8659; Export to Excel</button>
   </div>
 </div>
@@ -389,6 +390,7 @@ function handleExcelUpload(event) {
         'Sport: ' + sports + '  |  ' + ALL_DATA.length + ' brands  |  Refreshed from Excel';
       btn.textContent = '✓ Loaded!'; btn.style.background = 'rgba(34,197,94,0.25)';
       setTimeout(() => { btn.textContent = '↺ Refresh from Excel'; btn.style.background = ''; btn.disabled = false; }, 2500);
+      document.getElementById('savePortalBtn').style.display = 'flex';
       sortData(); updateStats(); renderView();
     } catch(err) {
       btn.textContent = '↺ Refresh from Excel'; btn.disabled = false;
@@ -397,6 +399,35 @@ function handleExcelUpload(event) {
     event.target.value = '';
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ── DOWNLOAD UPDATED PORTAL ───────────────────────────────────────────────────
+function downloadUpdatedPortal() {
+  try {
+    let html = document.documentElement.outerHTML;
+    // Find and replace the embedded data block with current ALL_DATA
+    const marker = 'const EMBEDDED_DATA = ';
+    const start = html.indexOf(marker);
+    if (start < 0) { alert('Could not locate embedded data in page.'); return; }
+    const arrStart = html.indexOf('[', start + marker.length);
+    // Walk to find matching closing bracket
+    let depth = 0, arrEnd = arrStart;
+    for (let i = arrStart; i < html.length; i++) {
+      if (html[i] === '[') depth++;
+      else if (html[i] === ']') { depth--; if (depth === 0) { arrEnd = i; break; } }
+    }
+    const newJson = JSON.stringify(ALL_DATA);
+    const updated = html.slice(0, arrStart) + newJson + html.slice(arrEnd + 1);
+    const blob = new Blob([updated], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'index.html';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(err) {
+    alert('Could not generate updated portal: ' + err.message);
+  }
 }
 
 function excelRowsToRecords(rows) {
