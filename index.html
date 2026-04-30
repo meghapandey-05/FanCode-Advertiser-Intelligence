@@ -384,6 +384,11 @@ function clearGHToken() { localStorage.removeItem('gh_pat'); }
 
 function buildUpdatedHTML() {
   let html = document.documentElement.outerHTML;
+  // Reset button to clean state so downloaded file doesn't show "Pushing..."
+  html = html.replace(/&#8635; Pushing[^<]*/g, '&#8635; Refresh from Excel');
+  html = html.replace(/✓ Live in[^<]*/g, '↺ Refresh from Excel');
+  html = html.replace(/⟳ Pushing[^<]*/g, '↺ Refresh from Excel');
+  // Replace embedded data
   const marker = 'const EMBEDDED_DATA = ';
   const start = html.indexOf(marker);
   if (start < 0) throw new Error('Could not locate embedded data block');
@@ -421,17 +426,28 @@ async function pushToGitHub(htmlContent) {
   bytes.forEach(b => binary += String.fromCharCode(b));
   const b64 = btoa(binary);
 
-  // Commit updated file
-  const putRes = await fetch(apiURL, {
-    method: 'PUT', headers,
-    body: JSON.stringify({
-      message: 'Portal data updated from Excel – ' + new Date().toISOString().slice(0,10),
-      content: b64, sha
-    })
+  // Commit updated file — retry once if first attempt fails
+  const commitBody = JSON.stringify({
+    message: 'Portal data updated from Excel – ' + new Date().toISOString().slice(0,10),
+    content: b64, sha
   });
+  let putRes = await fetch(apiURL, { method: 'PUT', headers, body: commitBody });
+  if (!putRes.ok && putRes.status !== 200 && putRes.status !== 201) {
+    // Retry once after re-fetching SHA (handles stale SHA)
+    await new Promise(r => setTimeout(r, 1500));
+    const retryGet = await fetch(apiURL, { headers });
+    if (retryGet.ok) {
+      const { sha: newSha } = await retryGet.json();
+      const retryBody = JSON.stringify({
+        message: 'Portal data updated from Excel – ' + new Date().toISOString().slice(0,10),
+        content: b64, sha: newSha
+      });
+      putRes = await fetch(apiURL, { method: 'PUT', headers, body: retryBody });
+    }
+  }
   if (!putRes.ok) {
-    const err = await putRes.json().catch(() => ({}));
-    throw new Error(err.message || 'Commit failed: ' + putRes.status);
+    const errData = await putRes.json().catch(() => ({}));
+    throw new Error((errData.message || 'Commit failed') + ' (HTTP ' + putRes.status + ')');
   }
 }
 
